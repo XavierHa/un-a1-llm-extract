@@ -1,0 +1,27 @@
+steps:
+  # 1. Build Docker Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'europe-west9-docker.pkg.dev/$PROJECT_ID/unnest-repo/microservice-prod:$COMMIT_SHA', '.']
+
+  # 2. Push to Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'europe-west9-docker.pkg.dev/$PROJECT_ID/unnest-repo/microservice-prod:$COMMIT_SHA']
+
+  # 3. Deploy to Cloud Run with Secret
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'unnest-microservice'
+      - '--image'
+      - 'europe-west9-docker.pkg.dev/$PROJECT_ID/unnest-repo/microservice-prod:$COMMIT_SHA'
+      - '--region'
+      - 'europe-west9'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-secrets=MISTRAL_API_KEY=mistral_api_key:latest'
+
+images:
+  - 'europe-west9-docker.pkg.dev/$PROJECT_ID/unnest-repo/microservice-prod:$COMMIT_SHA'
