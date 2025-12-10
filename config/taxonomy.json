@@ -1,15 +1,144 @@
-[
-    "Aéronautique", "Agriculture / Agronomie", "Architecture / Urbanisme",
-    "Arts / Culture", "Audiovisuel / Cinéma", "Audit / Conseil",
-    "Automobile", "Banque / Assurance", "BTP / Génie Civil",
-    "Chimie / Biologie", "Commerce / Distribution", "Communication / Pub",
-    "Comptabilité / Gestion", "Défense / Sécurité", "Design / Graphisme",
-    "Droit / Justice", "Édition / Journalisme", "Électronique / Énergie",
-    "Enseignement / Recherche", "Environnement / DD", "Événementiel",
-    "Fonction Publique", "Hôtellerie / Restauration", "Humanitaire / Social",
-    "Immobilier", "Industrie", "Informatique / Tech", "Ingénierie",
-    "Jeux Vidéo", "Langues / Traduction", "Logistique / Transport",
-    "Luxe / Mode", "Marketing", "Mathématiques / Stats", "Mécanique",
-    "Médical / Paramédical", "Ressources Humaines", "Sciences Politiques",
-    "Sport", "Tourisme"
-]
+{
+  "objectifs": [
+    "Définir mon projet d’études",
+    "Atteindre un objectif d’études",
+    "Définir mon projet pro",
+    "Atteindre un objectif d’insertion pro"
+  ],
+  "cursus": [
+    "Licence",
+    "BTS",
+    "Master",
+    "BUT/DUT",
+    "Ecole Post-bac",
+    "Grande école",
+    "CPGE",
+    "Bachelor",
+    "CAP",
+    "Doctorat",
+    "IFSI",
+    "Médecine",
+    "Autre"
+  ],
+  "filiere": [
+    "Aéronautique - Espace",
+    "Art Lettres Sciences du langage",
+    "Agriculture Sciences de la nature et de la vie",
+    "Banque, Assurance et Finance",
+    "Chimie, Génie des procédés",
+    "Commerce, Management, Gestion",
+    "Communication audiovisuel",
+    "Communication, Marketing",
+    "Comptabilité, Finance",
+    "Défense Police Gendarmerie",
+    "Droit, Justice, Notariat",
+    "Droit sciences politiques journalisme",
+    "Sciences économiques gestion commerce AES",
+    "Electronique, Télécoms et Réseaux",
+    "Enseignement",
+    "Formations d'Ingénieur",
+    "Formations paramédicales",
+    "Langues",
+    "Formations médicales et pharmacie",
+    "Sciences humaines et sociales",
+    "Sciences fondamentales",
+    "Sport",
+    "Environnement, Energies",
+    "Industriel, Production, Logistique",
+    "Informatique, Systèmes d'information",
+    "Mécanique, Energétique",
+    "Médical, Santé",
+    "Culture, Patrimoine",
+    "Lettres",
+    "Administratif, Accueil",
+    "Ressources Humaines",
+    "Social, Aide à la personne",
+    "Aménagement, Urbanisme",
+    "Architecture",
+    "Bâtiment, Travaux publics",
+    "Bien-être, Beauté",
+    "Coopération et Action humanitaire",
+    "Evènementiel",
+    "Hôtellerie, Tourisme, Restauration",
+    "Immobilier",
+    "Journalisme, Edition",
+    "Mode, Textile",
+    "Nouvelles technologies, Web",
+    "Double cursus",
+    "Autre"
+  ],
+  "secteurs": {
+    "Architecture": ["Design", "Urbanisme-paysagisme"],
+    "Economie Sociale et Solidaire": ["Fondation", "ONG", "Association"],
+    "Banque-Finance / Assurance": ["Banque", "Finance", "Assurance", "M&A"],
+    "Conseil-Audit": [
+      "Expertise comptable",
+      "Audit",
+      "Stratégie",
+      "Supply Chain"
+    ],
+    "Culture / Média / Divertissement": [
+      "Audiovisuel",
+      "Édition",
+      "Journalisme",
+      "Sport",
+      "Gaming"
+    ],
+    "Commerce-distribution": ["E-commerce", "Grande distribution"],
+    "Hôtellerie-restauration / Tourisme": [
+      "Hôtellerie",
+      "Tourisme",
+      "Evènementiel"
+    ],
+    "Immobilier": ["Immobilier commercial", "Immobilier particulier"],
+    "Industrie": [
+      "Aéronautique",
+      "Automobile",
+      "BTP",
+      "Energies",
+      "Pharmaceutique"
+    ],
+    "Mobilité / Transports": ["Logistique et transport", "Maritime"],
+    "Mode / Luxe": ["Luxe", "Mode", "Cosmétique"],
+    "Communication / Marketing": ["Publicité", "Design", "Marketing"],
+    "Santé / Social / Environnement": [
+      "Développement Durable",
+      "Environnement",
+      "Social",
+      "Santé"
+    ],
+    "Secteur public": ["Administration", "Science Politiques"],
+    "Informatique et réseaux": [
+      "IA / Data",
+      "Cybersécurité",
+      "Dev Web",
+      "SaaS"
+    ],
+    "Entrepreneuriat": ["Incubateur", "Coaching"]
+  },
+  "professions": {
+    "Accueil": ["Administratif", "Opérations hôtelières"],
+    "Agriculture": ["Production animale", "Vente agricole"],
+    "Artisanat": ["BTP", "Métallurgie", "Textile"],
+    "Culture et arts": ["Design", "Cinéma", "Traduction", "Patrimoine"],
+    "Enseignement-éducation": ["Enseignement supérieur", "Soutien scolaire"],
+    "Maintenance-entretien": ["Industriel", "Informatique", "Bâtiment"],
+    "Gestion de projets": ["Management", "Qualité", "Innovation"],
+    "Droit-justice": ["Avocat", "Juriste", "Magistrature", "Notariat"],
+    "Recherche et développement": [
+      "Biologie",
+      "Chimie",
+      "Mathématiques",
+      "Sciences humaines"
+    ],
+    "RH/Personnel": ["Recrutement", "Formation", "Ressources Humaines"],
+    "Santé": ["Médecin", "Infirmier", "Paramédical"],
+    "Sécurité et défense": ["Police", "Armée", "Cybersécurité"],
+    "Technologie et ingénierie": [
+      "Dev Logiciel",
+      "Data",
+      "Ingénierie matérielle"
+    ],
+    "Vente": ["Commercial", "Service client"]
+  }
+}
