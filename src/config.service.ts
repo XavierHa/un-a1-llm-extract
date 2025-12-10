@@ -1,61 +1,95 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  NotFoundException,
+} from "@nestjs/common";
 import * as fs from "fs";
 import * as path from "path";
 
-@Injectable()
-export class ConfigService {
-  private readonly logger = new Logger(ConfigService.name);
-  public taxonomy: string[] = [];
-  public systemPrompt: string = "";
+export interface TaskConfig {
+  taxonomy: any;
+  systemPrompt: string;
+}
 
-  constructor() {
+@Injectable()
+export class ConfigService implements OnModuleInit {
+  private readonly logger = new Logger(ConfigService.name);
+  // Store configs in a Map: 'student' -> { prompt, taxonomy }
+  private taskConfigs = new Map<string, TaskConfig>();
+
+  onModuleInit() {
     this.loadConfiguration();
   }
 
   private loadConfiguration() {
     try {
-      // 1. Resolve Paths
-      // In Docker, 'dist' is the root, so we go up one level to find 'config'
       const rootDir = path.resolve(__dirname, "..");
-      const taxonomyPath = path.join(rootDir, "config", "taxonomy.json");
-      const promptPath = path.join(rootDir, "config", "system_prompt.txt");
+      const configBaseDir = path.join(rootDir, "config");
 
-      this.logger.log(`Loading config from: ${rootDir}/config`);
+      this.logger.log(`Scanning config directory: ${configBaseDir}`);
 
-      // 2. Load and Validate Taxonomy (JSON)
-      if (!fs.existsSync(taxonomyPath))
-        throw new Error(`Taxonomy file missing at ${taxonomyPath}`);
-      const taxonomyRaw = fs.readFileSync(taxonomyPath, "utf-8");
-      this.taxonomy = JSON.parse(taxonomyRaw); // 💥 THROWS if JSON is bad
+      // 1. Get all sub-directories in /config
+      if (!fs.existsSync(configBaseDir))
+        throw new Error(`Config dir missing at ${configBaseDir}`);
 
-      if (!Array.isArray(this.taxonomy))
-        throw new Error("Taxonomy must be a JSON Array");
+      const tasks = fs
+        .readdirSync(configBaseDir, { withFileTypes: true })
+        .filter((dirent) => dirent.isDirectory())
+        .map((dirent) => dirent.name);
 
-      // 3. Load System Prompt (Text)
-      if (!fs.existsSync(promptPath))
-        throw new Error(`Prompt file missing at ${promptPath}`);
-      this.systemPrompt = fs.readFileSync(promptPath, "utf-8");
+      if (tasks.length === 0)
+        this.logger.warn("No tasks found in config directory!");
 
-      this.logger.log(
-        `✅ Configuration loaded. ${this.taxonomy.length} sectors loaded.`,
-      );
+      // 2. Loop through each folder (student, mentor...) and load files
+      for (const task of tasks) {
+        const taskDir = path.join(configBaseDir, task);
+        const taxonomyPath = path.join(taskDir, "taxonomy.json");
+        const promptPath = path.join(taskDir, "system_prompt.txt");
+
+        // Validate existence
+        if (!fs.existsSync(taxonomyPath) || !fs.existsSync(promptPath)) {
+          this.logger.warn(
+            `Skipping task '${task}': missing taxonomy.json or system_prompt.txt`,
+          );
+          continue;
+        }
+
+        // Load content
+        const taxonomy = JSON.parse(fs.readFileSync(taxonomyPath, "utf-8"));
+        const systemPrompt = fs.readFileSync(promptPath, "utf-8");
+
+        this.taskConfigs.set(task, { taxonomy, systemPrompt });
+        this.logger.log(`✅ Loaded config for task: '${task}'`);
+      }
     } catch (error) {
-      this.logger.error(`❌ FATAL: Configuration Error. Deployment rejected.`);
+      this.logger.error(`❌ FATAL: Configuration Logic Error.`);
       this.logger.error(error.message);
-      // 🛑 SAFETY NET: Kill the app immediately.
-      // Cloud Run will detect this crash during deployment and cancel the rollout.
       process.exit(1);
     }
   }
 
-  getCombinedPrompt() {
+  // Retrieve the specific config for the requested ID
+  getTaskConfig(taskId: string): TaskConfig {
+    const config = this.taskConfigs.get(taskId);
+    if (!config) {
+      throw new NotFoundException(
+        `Task configuration '${taskId}' not found. Available: [${Array.from(this.taskConfigs.keys()).join(", ")}]`,
+      );
+    }
+    return config;
+  }
+
+  // Helper to build the full prompt string
+  getCombinedPrompt(taskId: string) {
+    const config = this.getTaskConfig(taskId);
     return `
-      ${this.systemPrompt}
+    ${config.systemPrompt}
 
-      === TAXONOMY LISTS (STRICT MAPPING REQUIRED) ===
-      ${JSON.stringify(this.taxonomy, null, 2)}
+    === TAXONOMY LISTS (STRICT MAPPING REQUIRED) ===
+    ${JSON.stringify(config.taxonomy, null, 2)}
 
-      output valid JSON only.
-      `;
+    OUTPUT FORMAT: JSON ONLY.
+    `;
   }
 }

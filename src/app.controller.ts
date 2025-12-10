@@ -1,19 +1,32 @@
-import { Controller, Post, Body, HttpCode } from '@nestjs/common';
-import { AppService } from './app.service';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  HttpCode,
+  BadRequestException,
+} from "@nestjs/common";
+import { AppService } from "./app.service";
 
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Post('saas')
+  // Endpoint: POST /student or POST /mentor
+  @Post(":taskId")
   @HttpCode(200)
-  async extractSaaS(@Body('text') text: string) {
-    return this.appService.callSaaS(text);
-  }
+  async extract(
+    @Param("taskId") taskId: string,
+    @Body("text") text: string,
+    @Body("provider") provider?: "saas" | "vertex", // Optional param
+  ) {
+    if (!text) {
+      throw new BadRequestException('Field "text" is required in body');
+    }
 
-  @Post('vertex')
-  @HttpCode(200)
-  async extractVertex(@Body('text') text: string) {
-    return this.appService.callVertex(text);
+    // Default to 'saas' if not specified
+    const selectedProvider = provider || "saas";
+
+    return this.appService.process(taskId, text, selectedProvider);
   }
 }
