@@ -1,22 +1,23 @@
-# Unnest Matching Service (Article 1)
+# Service de Matching Unnest (Article 1)
 
-This microservice acts as an intelligent extraction layer for Article 1's mentorship platform. It processes raw student requests and extracts structured data (Sector, Confidence Score, Reasoning) to facilitate matching with mentors.
+Ce microservice agit comme une couche d'extraction intelligente pour la plateforme de mentorat d'Article 1. Il traite les demandes brutes (étudiants, mentors, etc.) et extrait des données structurées (Secteur, Confiance, Raisonnement) pour faciliter le matching.
 
-It leverages **Mistral AI** models, capable of running either via Mistral's SaaS platform or hosted on Google Vertex AI, ensuring flexibility and data sovereignty compliance.
+Il utilise les modèles **Mistral AI**, capables de fonctionner soit via la plateforme SaaS de Mistral, soit hébergés sur Google Vertex AI, assurant flexibilité et conformité des données.
 
-## 🚀 Features
+## 🚀 Fonctionnalités
 
-*   **Dual Provider Strategy**: Switch seamlessly between Mistral SaaS (La Plateforme) and Google Vertex AI (Model Garden).
-*   **Structured Extraction**: Converts unstructured text into strict JSON output based on a predefined taxonomy.
-*   **Privacy First**: Includes a PII (Personally Identifiable Information) scrubbing layer to remove phone numbers and emails before sending data to the LLM.
-*   **Fail-Safe Configuration**: The service validates its configuration (taxonomy and prompts) at startup and refuses to launch if integrity is compromised.
-*   **Cloud Native**: Dockerized and ready for Google Cloud Run with Secret Manager integration.
+*   **Architecture Multi-Tâches** : Supporte plusieurs types d'extraction (ex: `student`, `mentor`) dynamiquement en ajoutant simplement des dossiers de configuration.
+*   **Stratégie Double Fournisseur** : Basculez facilement entre Mistral SaaS (La Plateforme) et Google Vertex AI (Model Garden).
+*   **Extraction Structurée** : Convertit du texte non structuré en JSON strict basé sur une taxonomie prédéfinie.
+*   **Privacy First** : Inclut une couche de nettoyage PII (Données Personnelles) pour masquer numéros de téléphone et emails avant l'envoi au LLM.
+*   **Configuration Robuste** : Le service valide l'intégrité de toutes les tâches au démarrage et refuse de se lancer si une configuration est manquante.
+*   **Cloud Native** : Dockerisé et prêt pour Google Cloud Run avec intégration Secret Manager.
 
-## 🛠️ Prerequisites
+## 🛠️ Prérequis
 
 *   Node.js v20+
-*   Google Cloud Platform project (if using Vertex AI or deploying to Cloud Run).
-*   Mistral AI API Key (if using SaaS endpoint).
+*   Projet Google Cloud Platform (si utilisation de Vertex AI ou déploiement Cloud Run).
+*   Clé API Mistral AI (si utilisation du endpoint SaaS).
 
 ## 📦 Installation
 
@@ -24,112 +25,133 @@ It leverages **Mistral AI** models, capable of running either via Mistral's SaaS
 npm install
 ```
 
-## ⚙️ Configuration
+## ⚙️ Configuration Dynamique
 
-The service relies on two critical configuration files located in the `config/` directory:
+Le service utilise une architecture de configuration basée sur le système de fichiers dans le dossier `config/`.
+Chaque sous-dossier de `config/` représente une **tâche** (taskId) accessible via l'API.
 
-1.  **`taxonomy.json`**: A JSON array containing the valid list of sectors (e.g., "Aéronautique", "Informatique / Tech"). The LLM uses this to classify requests.
-2.  **`system_prompt.txt`**: The system instructions defining the AI's persona and output rules.
+### Structure des dossiers
 
-### Environment Variables
+Pour ajouter une nouvelle tâche (ex: `mentor`), créez un dossier `config/mentor/` avec deux fichiers obligatoires :
 
-| Variable | Description | Default |
+1.  **`taxonomy.json`** : Un tableau JSON ou un objet définissant les catégories valides.
+2.  **`system_prompt.txt`** : Les instructions système définissant la persona de l'IA et les règles de sortie.
+
+```
+config/
+├── student/                # Accessible via POST /student
+│   ├── system_prompt.txt
+│   └── taxonomy.json
+└── mentor/                 # Accessible via POST /mentor
+    ├── system_prompt.txt
+    └── taxonomy.json
+```
+
+### Variables d'Environnement
+
+| Variable | Description | Défaut |
 | :--- | :--- | :--- |
-| `MISTRAL_API_KEY` | API Key for Mistral SaaS Platform | Required for `/saas` |
-| `GOOGLE_CLOUD_PROJECT` | GCP Project ID | Auto-detected on Cloud Run |
+| `MISTRAL_API_KEY` | Clé API pour la plateforme SaaS Mistral | Requis pour le provider `saas` |
+| `GOOGLE_CLOUD_PROJECT` | ID du projet GCP | Auto-détecté sur Cloud Run |
 
-## 🏃‍♂️ Running Locally
+## 🏃‍♂️ Exécution Locale
 
-1.  Set your Mistral API Key:
+1.  Définir la clé API Mistral :
     ```bash
-    export MISTRAL_API_KEY="your_api_key_here"
+    export MISTRAL_API_KEY="votre_cle_api_ici"
     ```
 
-2.  Start the service:
+2.  Lancer le service :
     ```bash
-    # Development mode
+    # Mode développement
     npm run start
 
-    # Watch mode
+    # Mode watch
     npm run start:dev
     ```
 
-The server will start on port `3000` (default NestJS port).
+Le serveur démarrera sur le port `3000`.
 
-## 🔌 API Endpoints
+## 🔌 Endpoints API
 
-### 1. Extract via Mistral SaaS
-Uses the official Mistral SDK to call `mistral-small-latest`.
+L'API est dynamique. La route dépend du nom du dossier créé dans `config/`.
 
-*   **URL**: `POST /saas`
-*   **Body**:
+### Extraction Générique
+
+*   **URL** : `POST /:taskId` (ex: `/student`)
+*   **Headers** : `Content-Type: application/json`
+*   **Body** :
     ```json
     {
-      "text": "Bonjour, je suis étudiant en informatique et je cherche un mentor pour m'aider à devenir Data Scientist."
+      "text": "Votre texte à analyser ici...",
+      "provider": "saas" // Optionnel : "saas" (défaut) ou "vertex"
     }
     ```
 
-### 2. Extract via Vertex AI
-Uses the Google Vertex AI `rawPredict` endpoint to call `mistral-small` hosted on GCP.
+### Exemple : Tâche Étudiant
 
-*   **URL**: `POST /vertex`
-*   **Body**:
-    ```json
-    {
-      "text": "Je voudrais travailler dans l'hôtellerie."
-    }
-    ```
+Supposons que le dossier `config/student` existe.
 
-### Response Format (Both Endpoints)
+**Requête :**
+```bash
+curl -X POST http://localhost:3000/student \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Bonjour, je cherche un mentor en Data Science.",
+    "provider": "saas"
+  }'
+```
 
+**Réponse :**
 ```json
 {
-  "provider": "MISTRAL_SAAS", // or VERTEX_AI
+  "task_id": "student",
+  "provider": "MISTRAL_SAAS",
   "duration": "450ms",
   "data": {
     "secteur": "Informatique / Tech",
     "confidence": "High",
-    "reasoning": "Student explicitly mentions 'informatique' and 'Data Scientist'."
+    "reasoning": "L'étudiant mentionne explicitement 'Data Science'."
   }
 }
 ```
 
-## 🚢 Deployment
+## 🚢 Déploiement
 
-The project includes a `cloudbuild.yaml` for automated building and deployment to **Google Cloud Run**.
+Le projet inclut un `cloudbuild.yaml` pour la construction et le déploiement automatisés sur **Google Cloud Run**.
 
-It expects a Google Secret Manager secret named `mistral_api_key` to be available.
+Il s'attend à ce qu'un secret Google Secret Manager nommé `mistral_api_key` soit disponible.
 
 ```bash
-# Manual trigger via gcloud
+# Déclenchement manuel via gcloud
 gcloud builds submit --config cloudbuild.yaml .
 ```
 
-The build steps:
-1.  Builds the Docker image.
-2.  Pushes to Artifact Registry (`europe-west9-docker.pkg.dev`).
-3.  Deploys to Cloud Run service `unnest-microservice`.
+### Étapes de build :
+1.  Construction de l'image Docker.
+2.  Push vers l'Artifact Registry (`europe-west9-docker.pkg.dev`).
+3.  Déploiement sur le service Cloud Run `unnest-microservice`.
 
-## 📁 Project Structure
+## 📁 Structure du Projet
 
 ```
-├── config/
-│   ├── system_prompt.txt  # LLM Instructions
-│   └── taxonomy.json      # Valid Categories List
+├── config/            # Dossier racine des configurations de tâches
+│   ├── student/       # Configuration pour la tâche 'student'
+│   └── ...            # Autres tâches
 ├── src/
-│   ├── app.controller.ts  # API Routes
-│   ├── app.service.ts     # Business Logic & LLM Calls
-│   ├── config.service.ts  # Config Loader & Validation
-│   └── main.ts            # Entry point
-├── Dockerfile             # Container definition
-└── cloudbuild.yaml        # CI/CD Pipeline
+│   ├── app.controller.ts  # Routeur dynamique (/:taskId)
+│   ├── app.service.ts     # Logique métier & Appels LLM
+│   ├── config.service.ts  # Chargeur de config & Validation
+│   └── main.ts            # Point d'entrée
+├── Dockerfile             # Définition du conteneur
+└── cloudbuild.yaml        # Pipeline CI/CD
 ```
 
-## 🔒 Privacy & GDPR
+## 🔒 Confidentialité & RGPD
 
-The `cleanPii` method in `AppService` performs a regex-based pass to redact potential phone numbers and email addresses before they leave the service boundary.
+La méthode `cleanPii` dans `AppService` effectue un passage regex pour supprimer les numéros de téléphone et adresses email potentiels avant qu'ils ne quittent le périmètre du service.
 
 ```typescript
-// Example Redaction
-"Contact me at 06 12 34 56 78" -> "Contact me at [PHONE]"
+// Exemple de nettoyage
+"Contactez-moi au 06 12 34 56 78" -> "Contactez-moi au [PHONE]"
 ```
