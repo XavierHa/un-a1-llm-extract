@@ -28,6 +28,7 @@ Ce projet est conçu pour **Cloud Run** avec un pipeline CI/CD via **Cloud Build
 
 Assurez-vous d'avoir un projet GCP et les API activées :
 ```bash
+gcloud config set project [PROJECT_ID]
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com secretmanager.googleapis.com artifactregistry.googleapis.com
 ```
 
@@ -47,26 +48,46 @@ printf "votre_api_key_mistral" | gcloud secrets create mistral_api_key --data-fi
 
 Créez un dépôt Docker pour stocker les images :
 ```bash
-gcloud artifacts repositories create unnest-repo \
+gcloud artifacts repositories create llm-extract-microservice \
     --repository-format=docker \
     --location=europe-west9 \
-    --description="Repository pour le microservice Unnest"
+    --description="Repository pour le microservice LLM extract"
 ```
 
 ### 4. Déploiement (CI/CD)
+Donner au service account XXXX-compute@developer.gserviceaccount.com le 'Secret Manager Secret Accessor' role (roles/secretmanager.secretAccessor)
 
+``` bash
+gcloud secrets add-iam-policy-binding mistral_api_key \
+    --member="serviceAccount:XXXXXXXX-compute@developer.gserviceaccount.com" \
+    --role="roles/secretmanager.secretAccessor"
+```
 Le fichier `cloudbuild.yaml` à la racine orchestre le build et le déploiement.
-
 **Déploiement manuel immédiat :**
 ```bash
+gcloud beta run services add-iam-policy-binding --region=europe-west9 --member=allUsers --role=roles/run.invoker llm-extract-microservice
 gcloud builds submit --config cloudbuild.yaml .
 ```
 
 **Variables substituées automatiquement par Cloud Build :**
 *   `$PROJECT_ID`
-*   `$COMMIT_SHA`
+*   `$BUILD_ID`
 
 L'image sera construite, poussée sur l'Artifact Registry, et déployée sur Cloud Run avec l'injection du secret `MISTRAL_API_KEY` en variable d'environnement.
+
+### 5. Automatisation (CD Pipeline)
+
+Pour déployer automatiquement à chaque modification sur la branche `main` :
+
+1.  Allez dans la console Google Cloud : **Cloud Build > Déclencheurs**.
+2.  Cliquez sur **Créer un déclencheur**.
+3.  Sélectionnez votre source (GitHub) et le dépôt.
+4.  Configuration :
+    *   **Événement** : Push sur une branche.
+    *   **Branche** : `^main$`
+    *   **Configuration** : Fichier de configuration Cloud Build (emplacement : `/cloudbuild.yaml`).
+
+Désormais, tout `git push` déclenchera le pipeline défini dans `cloudbuild.yaml`.
 
 ## 🔌 Utilisation de l'API
 

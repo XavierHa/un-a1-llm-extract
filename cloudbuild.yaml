@@ -1,27 +1,43 @@
+substitutions:
+  _REGION: "europe-west9"
+  _REPO_NAME: "llm-extract-microservice"
+  _IMAGE_NAME: "microservice-prod"
+  _SERVICE_NAME: "llm-extract-microservice"
+
 steps:
   # 1. Build Docker Image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'europe-west9-docker.pkg.dev/$PROJECT_ID/unnest-repo/microservice-prod:$COMMIT_SHA', '.']
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_IMAGE_NAME}:$BUILD_ID",
+        ".",
+      ]
 
   # 2. Push to Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'europe-west9-docker.pkg.dev/$PROJECT_ID/unnest-repo/microservice-prod:$COMMIT_SHA']
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_IMAGE_NAME}:$BUILD_ID",
+      ]
 
   # 3. Deploy to Cloud Run with Secret
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: gcloud
     args:
-      - 'run'
-      - 'deploy'
-      - 'unnest-microservice'
-      - '--image'
-      - 'europe-west9-docker.pkg.dev/$PROJECT_ID/unnest-repo/microservice-prod:$COMMIT_SHA'
-      - '--region'
-      - 'europe-west9'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-      - '--set-secrets=MISTRAL_API_KEY=mistral_api_key:latest'
+      - "run"
+      - "deploy"
+      - "${_SERVICE_NAME}"
+      - "--image"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_IMAGE_NAME}:$BUILD_ID"
+      - "--region"
+      - "${_REGION}"
+      - "--platform"
+      - "managed"
+      - "--allow-unauthenticated"
+      - "--set-secrets=MISTRAL_API_KEY=mistral_api_key:latest"
 
 images:
-  - 'europe-west9-docker.pkg.dev/$PROJECT_ID/unnest-repo/microservice-prod:$COMMIT_SHA'
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_IMAGE_NAME}:$BUILD_ID"
