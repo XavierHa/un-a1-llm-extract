@@ -1,157 +1,91 @@
-# Service de Matching Unnest (Article 1)
+# Service d'Extraction IA - Unnest (Article 1)
 
-Ce microservice agit comme une couche d'extraction intelligente pour la plateforme de mentorat d'Article 1. Il traite les demandes brutes (étudiants, mentors, etc.) et extrait des données structurées (Secteur, Confiance, Raisonnement) pour faciliter le matching.
-
-Il utilise les modèles **Mistral AI**, capables de fonctionner soit via la plateforme SaaS de Mistral, soit hébergés sur Google Vertex AI, assurant flexibilité et conformité des données.
-
-## 🚀 Fonctionnalités
-
-*   **Architecture Multi-Tâches** : Supporte plusieurs types d'extraction (ex: `student`, `mentor`) dynamiquement en ajoutant simplement des dossiers de configuration.
-*   **Stratégie Double Fournisseur** : Basculez facilement entre Mistral SaaS (La Plateforme) et Google Vertex AI (Model Garden).
-*   **Extraction Structurée** : Convertit du texte non structuré en JSON strict basé sur une taxonomie prédéfinie.
-*   **Privacy First** : Inclut une couche de nettoyage PII (Données Personnelles) pour masquer numéros de téléphone et emails avant l'envoi au LLM.
-*   **Configuration Robuste** : Le service valide l'intégrité de toutes les tâches au démarrage et refuse de se lancer si une configuration est manquante.
-*   **Cloud Native** : Dockerisé et prêt pour Google Cloud Run avec intégration Secret Manager.
-
-## 🛠️ Prérequis
-
-*   Node.js v20+
-*   Projet Google Cloud Platform (si utilisation de Vertex AI ou déploiement Cloud Run).
-*   Clé API Mistral AI (si utilisation du endpoint SaaS).
-
-## 📦 Installation
-
-```bash
-npm install
-```
+Microservice d'extraction de données structurées pour le matching mentorat. Il analyse les demandes (étudiants, bénévoles) via **Mistral AI** (SaaS ou Vertex AI) pour en extraire des informations clés (secteur, cursus, objectifs) selon une taxonomie définie.
 
 ## ⚙️ Configuration Dynamique
 
-Le service utilise une architecture de configuration basée sur le système de fichiers dans le dossier `config/`.
-Chaque sous-dossier de `config/` représente une **tâche** (taskId) accessible via l'API.
+Le comportement du service est piloté par le dossier `config/`. Chaque sous-dossier correspond à une **tâche** accessible via l'API (ex: `POST /student`).
 
-### Structure des dossiers
-
-Pour ajouter une nouvelle tâche (ex: `mentor`), créez un dossier `config/mentor/` avec deux fichiers obligatoires :
-
-1.  **`taxonomy.json`** : Un tableau JSON ou un objet définissant les catégories valides.
-2.  **`system_prompt.txt`** : Les instructions système définissant la persona de l'IA et les règles de sortie.
+### Structure Requise
+Pour ajouter une nouvelle typologie d'extraction, créez un dossier dans `config/` :
 
 ```
 config/
-├── student/                # Accessible via POST /student
-│   ├── system_prompt.txt
-│   └── taxonomy.json
-└── mentor/                 # Accessible via POST /mentor
-    ├── system_prompt.txt
-    └── taxonomy.json
+├── student/                # Endpoint: POST /student
+│   ├── system_prompt.txt   # Instructions système (Persona, Règles de sortie)
+│   └── taxonomy.json       # Liste/Arbre des catégories valides
+└── mentor/                 # Endpoint: POST /mentor
+    ├── ...
 ```
 
-### Variables d'Environnement
+*Le service refuse de démarrer si une configuration est incomplète.*
 
-| Variable | Description | Défaut |
-| :--- | :--- | :--- |
-| `MISTRAL_API_KEY` | Clé API pour la plateforme SaaS Mistral | Requis pour le provider `saas` |
-| `GOOGLE_CLOUD_PROJECT` | ID du projet GCP | Auto-détecté sur Cloud Run |
+## ☁️ Déploiement Google Cloud
 
-## 🏃‍♂️ Exécution Locale
+Ce projet est conçu pour **Cloud Run** avec un pipeline CI/CD via **Cloud Build**.
 
-1.  Définir la clé API Mistral :
-    ```bash
-    export MISTRAL_API_KEY="votre_cle_api_ici"
-    ```
+### 1. Prérequis Infrastructure
 
-2.  Lancer le service :
-    ```bash
-    # Mode développement
-    npm run start
-
-    # Mode watch
-    npm run start:dev
-    ```
-
-Le serveur démarrera sur le port `3000`.
-
-## 🔌 Endpoints API
-
-L'API est dynamique. La route dépend du nom du dossier créé dans `config/`.
-
-### Extraction Générique
-
-*   **URL** : `POST /:taskId` (ex: `/student`)
-*   **Headers** : `Content-Type: application/json`
-*   **Body** :
-    ```json
-    {
-      "text": "Votre texte à analyser ici...",
-      "provider": "saas" // Optionnel : "saas" (défaut) ou "vertex"
-    }
-    ```
-
-### Exemple : Tâche Étudiant
-
-Supposons que le dossier `config/student` existe.
-
-**Requête :**
+Assurez-vous d'avoir un projet GCP et les API activées :
 ```bash
-curl -X POST http://localhost:3000/student \
-  -H "Content-Type: application/json" \
-  -d '{
-    "text": "Bonjour, je cherche un mentor en Data Science.",
-    "provider": "saas"
-  }'
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com secretmanager.googleapis.com artifactregistry.googleapis.com
 ```
 
-**Réponse :**
-```json
-{
-  "task_id": "student",
-  "provider": "MISTRAL_SAAS",
-  "duration": "450ms",
-  "data": {
-    "secteur": "Informatique / Tech",
-    "confidence": "High",
-    "reasoning": "L'étudiant mentionne explicitement 'Data Science'."
-  }
-}
-```
+### 2. Gestion des Secrets
 
-## 🚢 Déploiement
-
-Le projet inclut un `cloudbuild.yaml` pour la construction et le déploiement automatisés sur **Google Cloud Run**.
-
-Il s'attend à ce qu'un secret Google Secret Manager nommé `mistral_api_key` soit disponible.
+La clé API Mistral ne doit pas être versionnée. Utilisez **Secret Manager** :
 
 ```bash
-# Déclenchement manuel via gcloud
+# Création du secret
+printf "votre_api_key_mistral" | gcloud secrets create mistral_api_key --data-file=-
+
+# Accorder les droits à Cloud Run (une fois le service déployé ou via le compte de service par défaut)
+# Le fichier cloudbuild.yaml s'attend à trouver ce secret lors du déploiement.
+```
+
+### 3. Artifact Registry
+
+Créez un dépôt Docker pour stocker les images :
+```bash
+gcloud artifacts repositories create unnest-repo \
+    --repository-format=docker \
+    --location=europe-west9 \
+    --description="Repository pour le microservice Unnest"
+```
+
+### 4. Déploiement (CI/CD)
+
+Le fichier `cloudbuild.yaml` à la racine orchestre le build et le déploiement.
+
+**Déploiement manuel immédiat :**
+```bash
 gcloud builds submit --config cloudbuild.yaml .
 ```
 
-### Étapes de build :
-1.  Construction de l'image Docker.
-2.  Push vers l'Artifact Registry (`europe-west9-docker.pkg.dev`).
-3.  Déploiement sur le service Cloud Run `unnest-microservice`.
+**Variables substituées automatiquement par Cloud Build :**
+*   `$PROJECT_ID`
+*   `$COMMIT_SHA`
 
-## 📁 Structure du Projet
+L'image sera construite, poussée sur l'Artifact Registry, et déployée sur Cloud Run avec l'injection du secret `MISTRAL_API_KEY` en variable d'environnement.
 
+## 🔌 Utilisation de l'API
+
+Une fois déployé, le service expose les endpoints correspondant à vos dossiers de config.
+
+**Exemple d'appel (Tâche `student`) :**
+
+```bash
+curl -X POST https://votre-service-url.run.app/student \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Je suis en L3 Biologie et je cherche un stage en R&D pharmaceutique.",
+    "provider": "saas" 
+  }'
 ```
-├── config/            # Dossier racine des configurations de tâches
-│   ├── student/       # Configuration pour la tâche 'student'
-│   └── ...            # Autres tâches
-├── src/
-│   ├── app.controller.ts  # Routeur dynamique (/:taskId)
-│   ├── app.service.ts     # Logique métier & Appels LLM
-│   ├── config.service.ts  # Chargeur de config & Validation
-│   └── main.ts            # Point d'entrée
-├── Dockerfile             # Définition du conteneur
-└── cloudbuild.yaml        # Pipeline CI/CD
-```
 
-## 🔒 Confidentialité & RGPD
+*   **provider** (optionnel) : `"saas"` (Mistral La Plateforme) ou `"vertex"` (Google Vertex AI).
 
-La méthode `cleanPii` dans `AppService` effectue un passage regex pour supprimer les numéros de téléphone et adresses email potentiels avant qu'ils ne quittent le périmètre du service.
+## 🛡️ Sécurité & Privacy
 
-```typescript
-// Exemple de nettoyage
-"Contactez-moi au 06 12 34 56 78" -> "Contactez-moi au [PHONE]"
-```
+*   **PII Scrubbing** : Les emails et numéros de téléphone sont masqués par regex avant l'envoi au LLM.
+*   **Fail-Fast** : Le conteneur crash au démarrage si la configuration (JSON/Prompt) est invalide, empêchant le déploiement de versions corrompues.
