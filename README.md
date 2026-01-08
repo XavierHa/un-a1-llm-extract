@@ -55,17 +55,37 @@ gcloud artifacts repositories create llm-extract-microservice \
 ```
 
 ### 4. Déploiement (CI/CD)
-Donner au service account XXXX-compute@developer.gserviceaccount.com le 'Secret Manager Secret Accessor' role (roles/secretmanager.secretAccessor)
 
-``` bash
+**A. Permissions Cloud Build**
+Pour que Cloud Build puisse déployer sur Cloud Run, il faut accorder des droits à son compte de service :
+
+```bash
+PROJECT_ID=$(gcloud config get-value project)
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+    --role="roles/run.admin"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+    --role="roles/iam.serviceAccountUser"
+```
+
+**B. Accès aux Secrets**
+Donner au compte de service par défaut (utilisé par Cloud Run) le droit d'accéder à la clé API :
+
+```bash
+# On réutilise le PROJECT_NUMBER récupéré ci-dessus
 gcloud secrets add-iam-policy-binding mistral_api_key \
-    --member="serviceAccount:XXXXXXXX-compute@developer.gserviceaccount.com" \
+    --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
     --role="roles/secretmanager.secretAccessor"
 ```
-Le fichier `cloudbuild.yaml` à la racine orchestre le build et le déploiement.
-**Déploiement manuel immédiat :**
+
+**C. Lancer le déploiement**
+Le fichier `cloudbuild.yaml` orchestre le build et le déploiement.
+
 ```bash
-gcloud beta run services add-iam-policy-binding --region=europe-west9 --member=allUsers --role=roles/run.invoker llm-extract-microservice
 gcloud builds submit --config cloudbuild.yaml .
 ```
 
