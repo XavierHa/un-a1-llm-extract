@@ -15,7 +15,7 @@ export class AppService {
 
   // Vertex Config
   private projectId = "random-unnest";
-  private location = "eureope-west4"; // US for model availability
+  private location = "europe-west4"; // US for model availability
   private vertexModelId = "mistral-small-2503";
 
   constructor(private configService: ConfigService) {
