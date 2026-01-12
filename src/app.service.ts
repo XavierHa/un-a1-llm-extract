@@ -27,17 +27,39 @@ export class AppService {
 
   // --- MAIN ENTRY POINT ---
   async process(taskId: string, rawText: string, provider: "saas" | "vertex") {
-    // 1. Prepare Data
-    const safeText = this.cleanPii(rawText);
-    const systemPrompt = this.configService.getCombinedPrompt(taskId);
     const start = Date.now();
+
+    // 1. Prepare Data
+    const piiStart = Date.now();
+    const safeText = this.cleanPii(rawText);
+    const piiTime = Date.now() - piiStart;
+
+    const promptStart = Date.now();
+    const systemPrompt = this.configService.getCombinedPrompt(taskId);
+    const promptTime = Date.now() - promptStart;
+
+    const partialTiming = {
+      start_ts: start,
+      pii_scrubbing_ms: piiTime,
+      prompt_construction_ms: promptTime,
+    };
 
     try {
       // 2. Route to the correct provider
       if (provider === "vertex") {
-        return await this.callVertex(systemPrompt, safeText, start, taskId);
+        return await this.callVertex(
+          systemPrompt,
+          safeText,
+          taskId,
+          partialTiming,
+        );
       } else {
-        return await this.callSaaS(systemPrompt, safeText, start, taskId);
+        return await this.callSaaS(
+          systemPrompt,
+          safeText,
+          taskId,
+          partialTiming,
+        );
       }
     } catch (e: any) {
       this.logger.error(`Task ${taskId} failed on ${provider}: ${e.message}`);
@@ -49,9 +71,10 @@ export class AppService {
   private async callSaaS(
     systemPrompt: string,
     userText: string,
-    startTime: number,
     taskId: string,
+    partialTiming: any,
   ) {
+    const apiStart = Date.now();
     const result = await this.mistralClient.chat.complete({
       model: "mistral-small-latest",
       messages: [
@@ -61,12 +84,19 @@ export class AppService {
       responseFormat: { type: "json_object" },
       temperature: 0.1,
     });
+    const apiTime = Date.now() - apiStart;
+    const totalTime = Date.now() - partialTiming.start_ts;
 
     return {
       task_id: taskId,
       provider: "MISTRAL_SAAS",
-      duration: `${Date.now() - startTime}ms`,
+      duration: `${totalTime}ms`,
       data: JSON.parse(result.choices[0].message.content as string),
+      timing: {
+        ...partialTiming,
+        external_api_call_ms: apiTime,
+        total_processing_ms: totalTime,
+      },
     };
   }
 
@@ -74,9 +104,10 @@ export class AppService {
   private async callVertex(
     systemPrompt: string,
     userText: string,
-    startTime: number,
     taskId: string,
+    partialTiming: any,
   ) {
+    const apiStart = Date.now();
     const client = await this.googleAuth.getClient();
     const accessToken = await client.getAccessToken();
 
@@ -104,18 +135,25 @@ export class AppService {
     }
 
     const json = await response.json();
+    const apiTime = Date.now() - apiStart;
     let content = json.choices[0].message.content;
 
     // Clean Vertex Markdown (```json ... ```)
     if (typeof content === "string") {
       content = content.replace(/```json\n|\n```/g, "").trim();
     }
+    const totalTime = Date.now() - partialTiming.start_ts;
 
     return {
       task_id: taskId,
       provider: "GOOGLE_VERTEX_AI",
-      duration: `${Date.now() - startTime}ms`,
+      duration: `${totalTime}ms`,
       data: JSON.parse(content),
+      timing: {
+        ...partialTiming,
+        external_api_call_ms: apiTime,
+        total_processing_ms: totalTime,
+      },
     };
   }
 
